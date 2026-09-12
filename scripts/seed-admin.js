@@ -6,16 +6,7 @@ const client = new Client({
   ssl: { rejectUnauthorized: false }
 });
 
-async function main() {
-  await client.connect();
-  console.log('Connected to DB.');
-
-  // Create extension if not exists
-  await client.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
-
-  const email = 'admin@kunjungan.test';
-  const password = 'Admin123456!';
-
+async function seedAdminUser(email, password) {
   // Check if admin user already exists
   const existing = await client.query('SELECT id, email FROM auth.users WHERE email = $1', [email]);
 
@@ -30,7 +21,7 @@ async function main() {
       WHERE email = $2`,
       [password, email]
     );
-    console.log('Password updated and email confirmed.');
+    console.log(`Password updated and email confirmed for ${email}.`);
   } else {
     // Insert new confirmed user into auth.users
     const insertRes = await client.query(
@@ -75,7 +66,7 @@ async function main() {
     );
 
     const newUserId = insertRes.rows[0].id;
-    console.log('Created user in auth.users:', newUserId);
+    console.log(`Created user in auth.users for ${email}:`, newUserId);
 
     // Also insert into auth.identities so Supabase GoTrue Auth finds the provider identity
     await client.query(
@@ -101,13 +92,31 @@ async function main() {
       [email, newUserId, email]
     );
 
-    console.log('Created identity in auth.identities for email auth.');
+    console.log(`Created identity in auth.identities for ${email}.`);
+  }
+}
+
+async function main() {
+  await client.connect();
+  console.log('Connected to DB.');
+
+  // Create extension if not exists
+  await client.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
+
+  const accounts = [
+    { email: 'admin@kunjungan.test', password: 'Admin123456!' },
+    { email: 'admin2@kunjungan.test', password: 'Admin123456!' },
+  ];
+
+  for (const acc of accounts) {
+    await seedAdminUser(acc.email, acc.password);
   }
 
   await client.end();
-  console.log('Admin user setup complete! Credentials:');
-  console.log('Email:', email);
-  console.log('Password:', password);
+  console.log('\nAdmin users setup complete! Available accounts:');
+  accounts.forEach((acc, i) => {
+    console.log(`- Akun Admin ${i + 1}: ${acc.email} / ${acc.password}`);
+  });
 }
 
 main().catch(err => {

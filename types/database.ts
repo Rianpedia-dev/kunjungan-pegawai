@@ -29,3 +29,19 @@ export interface Pegawai {
   is_active: boolean;
   created_at: string;
 }
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  nama?: string | null;
+  role?: string | null;
+  created_at: string;
+  last_sign_in_at?: string | null;
+}
+
+export interface PengaturanSistem {
+  key: string;
+  value: string;
+  description?: string | null;
+  updated_at: string;
+}

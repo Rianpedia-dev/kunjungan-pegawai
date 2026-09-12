@@ -14,6 +14,7 @@ import {
   Shield,
   Menu,
   X,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOutAdminAction } from "@/app/actions/auth";
@@ -38,6 +39,11 @@ const navItems = [
     title: "Data Pegawai",
     href: "/admin/pegawai",
     icon: UserSquare2,
+  },
+  {
+    title: "Akun Admin",
+    href: "/admin/pengguna",
+    icon: ShieldCheck,
   },
 ];
 

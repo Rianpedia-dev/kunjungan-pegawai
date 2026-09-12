@@ -5,21 +5,31 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
-import { Lock, Mail, ArrowRight, ArrowLeft, Loader2, UserCheck, KeyRound, AlertCircle } from "lucide-react";
+import { Lock, Mail, ArrowLeft, Loader2, KeyRound, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { signInAdminAction, signUpInitialAdminAction } from "@/app/actions/auth";
+import { signInAdminAction } from "@/app/actions/auth";
+import { getDemoAccountsSettingAction } from "@/app/actions/admin-users";
 import { adminAuthSchema } from "@/lib/validations/kunjungan";
 import { cleanErrorMessage, cn } from "@/lib/utils";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [isRegisterMode, setIsRegisterMode] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [demoEnabled, setDemoEnabled] = React.useState(true);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    getDemoAccountsSettingAction().then((res) => {
+      if (res && typeof res.enabled === "boolean") {
+        setDemoEnabled(res.enabled);
+      }
+    });
+  }, []);
 
   const clearError = (field: string) => {
     if (errors[field]) {
@@ -56,25 +66,16 @@ export default function AdminLoginPage() {
     formData.append("password", password);
 
     try {
-      if (isRegisterMode) {
-        toast.loading("Mendaftarkan akun admin baru...", { id: "auth" });
-        const res = await signUpInitialAdminAction(formData);
-        if (res.success) {
-          toast.success("Pendaftaran admin berhasil! Silakan login.", { id: "auth" });
-          setIsRegisterMode(false);
-        } else {
-          toast.error(cleanErrorMessage(res.error || "Gagal mendaftarkan akun"), { id: "auth" });
-        }
+      toast.loading("Memverifikasi kredensial...", { id: "auth" });
+      const res = await signInAdminAction(formData);
+      if (res.success) {
+        toast.success("Login berhasil! Mengalihkan ke dashboard...", { id: "auth" });
+        router.push("/admin");
+        router.refresh();
       } else {
-        toast.loading("Memverifikasi kredensial...", { id: "auth" });
-        const res = await signInAdminAction(formData);
-        if (res.success) {
-          toast.success("Login berhasil! Mengalihkan ke dashboard...", { id: "auth" });
-          router.push("/admin");
-          router.refresh();
-        } else {
-          toast.error(cleanErrorMessage(res.error || "Login gagal, periksa email & kata sandi"), { id: "auth" });
-        }
+        toast.error(cleanErrorMessage(res.error || "Login gagal, periksa email & kata sandi"), {
+          id: "auth",
+        });
       }
     } catch {
       toast.error("Terjadi kendala jaringan", { id: "auth" });
@@ -110,12 +111,10 @@ export default function AdminLoginPage() {
             priority
           />
           <CardTitle className="text-2xl font-bold text-slate-900">
-            {isRegisterMode ? "Buat Akun Admin" : "Login Portal Admin"}
+            Login Portal Admin
           </CardTitle>
           <CardDescription className="text-xs text-slate-500 mt-1">
-            {isRegisterMode
-              ? "Daftarkan akun admin pertama untuk mengelola data kunjungan kantor."
-              : "Masuk untuk memindai QR code kedatangan tamu dan melihat rekapitulasi data."}
+            Masuk untuk memindai QR code kedatangan tamu dan melihat rekapitulasi data kunjungan.
           </CardDescription>
         </CardHeader>
 
@@ -155,7 +154,7 @@ export default function AdminLoginPage() {
               <div className="relative">
                 <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                 <Input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => {
@@ -163,11 +162,23 @@ export default function AdminLoginPage() {
                     clearError("password");
                   }}
                   className={cn(
-                    "pl-10",
+                    "pl-10 pr-10",
                     errors.password &&
                       "border-rose-500 bg-rose-50/20 text-rose-950 focus-visible:border-rose-500 focus-visible:ring-rose-500/25"
                   )}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                  className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors cursor-pointer"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
               </div>
               {errors.password && (
                 <p className="text-xs text-rose-600 font-medium flex items-center gap-1.5 mt-1 animate-in fade-in-50">
@@ -181,17 +192,12 @@ export default function AdminLoginPage() {
               type="submit"
               disabled={isLoading}
               size="lg"
-              className="w-full text-sm font-semibold rounded-xl mt-2 bg-blue-600 hover:bg-blue-700 shadow-md"
+              className="w-full text-sm font-semibold rounded-xl mt-2 bg-blue-600 hover:bg-blue-700 shadow-md cursor-pointer"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sedang Memproses...
-                </>
-              ) : isRegisterMode ? (
-                <>
-                  <UserCheck className="mr-2 h-4 w-4" />
-                  Daftarkan Akun Admin
+                  Memverifikasi Kredensial...
                 </>
               ) : (
                 <>
@@ -202,33 +208,63 @@ export default function AdminLoginPage() {
             </Button>
           </form>
 
-          {/* Toggle between Login and Initial Registration */}
-          <div className="mt-6 pt-4 border-t border-slate-100 space-y-2 text-center">
-            {!isRegisterMode && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail("admin@kunjungan.test");
-                  setPassword("Admin123456!");
-                }}
-                className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-medium transition-colors inline-flex items-center gap-1"
-              >
-                <span>🔑 Isi Akun Default (admin@kunjungan.test)</span>
-              </button>
-            )}
+          {/* Demo Accounts Section (Hanya tampil jika diaktifkan di dashboard admin) */}
+          {demoEnabled && (
+            <div className="mt-6 pt-4 border-t border-slate-100 space-y-2.5 animate-in fade-in-50 duration-200">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-400">
+                  Pilihan Akun Demo:
+                </span>
+                <span className="text-[10px] text-slate-400">Klik untuk isi otomatis</span>
+              </div>
 
-            <div>
-              <button
-                type="button"
-                onClick={() => setIsRegisterMode(!isRegisterMode)}
-                className="text-xs text-blue-600 hover:underline font-medium"
-              >
-                {isRegisterMode
-                  ? "Sudah memiliki akun? Masuk di sini"
-                  : "Belum punya akun admin? Buat akun di sini"}
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("admin@kunjungan.test");
+                    setPassword("Admin123456!");
+                    setErrors({});
+                    toast.info("Akun Admin 1 dipilih");
+                  }}
+                  className={cn(
+                    "p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-0.5",
+                    email === "admin@kunjungan.test"
+                      ? "border-blue-500 bg-blue-50/70 ring-2 ring-blue-500/20"
+                      : "border-slate-200 hover:border-blue-300 hover:bg-slate-50 bg-white"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-800">
+                    <KeyRound className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    <span>Akun Admin 1</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 truncate">admin@kunjungan.test</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("admin2@kunjungan.test");
+                    setPassword("Admin123456!");
+                    setErrors({});
+                    toast.info("Akun Admin 2 dipilih");
+                  }}
+                  className={cn(
+                    "p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-0.5",
+                    email === "admin2@kunjungan.test"
+                      ? "border-blue-500 bg-blue-50/70 ring-2 ring-blue-500/20"
+                      : "border-slate-200 hover:border-blue-300 hover:bg-slate-50 bg-white"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-800">
+                    <KeyRound className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <span>Akun Admin 2</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 truncate">admin2@kunjungan.test</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>
