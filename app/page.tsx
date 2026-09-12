@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ShieldCheck, Building, Sparkles, QrCode, ClipboardCheck } from "lucide-react";
+import Image from "next/image";
+import { ShieldCheck, Sparkles } from "lucide-react";
 import { getPegawaiListAction } from "@/app/actions/kunjungan";
 import { VisitForm } from "@/components/public/visit-form";
 
@@ -14,9 +15,14 @@ export default async function HomePage() {
       <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-              <Building className="h-5 w-5" />
-            </div>
+            <Image
+              src="/logo-kunjungan-pegawai.avif"
+              alt="Logo Kunjungan Pegawai"
+              width={42}
+              height={42}
+              className="h-10 w-10 object-contain rounded-xl shadow-xs"
+              priority
+            />
             <div>
               <h1 className="font-bold text-slate-900 text-sm sm:text-base leading-tight">
                 Sistem Kunjungan Pegawai

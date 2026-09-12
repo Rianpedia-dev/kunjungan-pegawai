@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, AlertCircle, Building } from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft, AlertCircle } from "lucide-react";
 import { getKunjunganByCodeAction } from "@/app/actions/kunjungan";
 import { TicketCard } from "@/components/public/ticket-card";
 import { Button } from "@/components/ui/button";
@@ -24,9 +25,13 @@ export default async function TicketPage({ params }: TicketPageProps) {
       <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md no-print">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center space-x-2.5">
-            <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
-              <Building className="h-4 w-4" />
-            </div>
+            <Image
+              src="/logo-kunjungan-pegawai.avif"
+              alt="Logo Kunjungan Pegawai"
+              width={36}
+              height={36}
+              className="h-8 w-8 object-contain rounded-lg shadow-xs"
+            />
             <span className="font-bold text-slate-800 text-sm">
               Sistem Kunjungan Pegawai
             </span>

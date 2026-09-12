@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
@@ -144,11 +145,18 @@ export function TicketCard({ initialData }: TicketCardProps) {
       {/* Main Ticket Card */}
       <Card className="border-slate-200/90 shadow-2xl rounded-3xl overflow-hidden bg-white print:border-none print:shadow-none">
         {/* Ticket Header Gradient */}
-        <div className="bg-linear-to-r from-blue-700 via-indigo-700 to-sky-600 p-6 text-white text-center relative">
+        <div className="bg-linear-to-r from-blue-700 via-indigo-700 to-sky-600 p-6 text-white text-center relative flex flex-col items-center">
+          <Image
+            src="/logo-kunjungan-pegawai.avif"
+            alt="Logo Kunjungan"
+            width={48}
+            height={48}
+            className="h-12 w-12 object-contain rounded-xl mb-2 bg-white/10 p-1 backdrop-blur-xs shadow-sm"
+          />
           <span className="text-[11px] uppercase tracking-widest font-semibold text-blue-200">
             Tiket Digital Kunjungan Tamu
           </span>
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight mt-1">
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight mt-0.5">
             BUKU TAMU INSTANSI
           </h2>
           <div className="mt-3 inline-block bg-white/15 backdrop-blur-md rounded-full px-4 py-1 font-mono text-sm tracking-widest font-bold">

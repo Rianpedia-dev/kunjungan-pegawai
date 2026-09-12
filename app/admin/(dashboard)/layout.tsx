@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import { getAdminUser } from "@/app/actions/auth";
 import { SidebarNav } from "@/components/admin/sidebar-nav";
-import { Shield } from "lucide-react";
 
 export const revalidate = 0;
 
@@ -25,8 +25,15 @@ export default async function AdminDashboardLayout({
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
         <header className="h-16 bg-white border-b border-slate-200 px-6 hidden lg:flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          <div className="flex items-center space-x-2.5">
+            <Image
+              src="/logo-kunjungan-pegawai.avif"
+              alt="Logo Kunjungan Pegawai"
+              width={28}
+              height={28}
+              className="h-7 w-7 object-contain rounded-lg shadow-xs"
+            />
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Portal Resepsionis & Keamanan
             </span>
           </div>

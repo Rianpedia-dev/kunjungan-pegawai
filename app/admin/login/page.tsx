@@ -3,8 +3,9 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { toast } from "sonner";
-import { Shield, Lock, Mail, ArrowRight, ArrowLeft, Loader2, UserCheck, KeyRound } from "lucide-react";
+import { Lock, Mail, ArrowRight, ArrowLeft, Loader2, UserCheck, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -75,9 +76,14 @@ export default function AdminLoginPage() {
         <div className="h-2 w-full bg-linear-to-r from-blue-700 via-indigo-700 to-sky-600" />
 
         <CardHeader className="p-6 sm:p-8 pb-4 text-center">
-          <div className="h-12 w-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto shadow-md shadow-blue-500/20 mb-3">
-            <Shield className="h-6 w-6" />
-          </div>
+          <Image
+            src="/logo-kunjungan-pegawai.avif"
+            alt="Logo Kunjungan Pegawai"
+            width={64}
+            height={64}
+            className="h-16 w-16 object-contain rounded-2xl mx-auto mb-3 shadow-md"
+            priority
+          />
           <CardTitle className="text-2xl font-bold text-slate-900">
             {isRegisterMode ? "Buat Akun Admin" : "Login Portal Admin"}
           </CardTitle>
