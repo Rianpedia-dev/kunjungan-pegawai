@@ -29,7 +29,7 @@ import {
   updateKunjunganStatusAction,
   deleteKunjunganAction,
 } from "@/app/actions/kunjungan";
-import { formatTanggalIndo, formatWaktuIndo } from "@/lib/utils";
+import { formatTanggalIndo, formatWaktuIndo, cleanErrorMessage } from "@/lib/utils";
 import type { Kunjungan, StatusKunjungan } from "@/types/database";
 
 interface VisitorTableProps {
@@ -69,7 +69,7 @@ export function VisitorTable({ initialData }: VisitorTableProps) {
       if (res.success) {
         setData(res.data);
       } else {
-        toast.error("Gagal memuat data: " + res.error);
+        toast.error("Gagal memuat data: " + cleanErrorMessage(res.error));
       }
     } finally {
       setIsLoading(false);
@@ -99,10 +99,10 @@ export function VisitorTable({ initialData }: VisitorTableProps) {
           setSelectedVisitor(res.data);
         }
       } else {
-        toast.error(res.error || "Gagal mengubah status", { id: "update-status" });
+        toast.error(cleanErrorMessage(res.error || "Gagal mengubah status"), { id: "update-status" });
       }
-    } catch {
-      toast.error("Terjadi kendala server", { id: "update-status" });
+    } catch (err) {
+      toast.error(cleanErrorMessage(err) || "Terjadi kendala server", { id: "update-status" });
     }
   };
 
@@ -117,10 +117,10 @@ export function VisitorTable({ initialData }: VisitorTableProps) {
         setData((prev) => prev.filter((item) => item.id !== id));
         setDetailOpen(false);
       } else {
-        toast.error(res.error || "Gagal menghapus", { id: "delete-item" });
+        toast.error(cleanErrorMessage(res.error || "Gagal menghapus"), { id: "delete-item" });
       }
-    } catch {
-      toast.error("Terjadi kendala server", { id: "delete-item" });
+    } catch (err) {
+      toast.error(cleanErrorMessage(err) || "Terjadi kendala server", { id: "delete-item" });
     }
   };
 

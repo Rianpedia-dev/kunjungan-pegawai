@@ -1,13 +1,30 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { generateBookingCode } from '@/lib/utils';
+import { generateBookingCode, cleanErrorMessage, extractZodFieldErrors } from '@/lib/utils';
 import { kunjunganSchema, type KunjunganFormValues } from '@/lib/validations/kunjungan';
 import type { Kunjungan, Pegawai, StatusKunjungan } from '@/types/database';
 
 export async function submitKunjunganAction(rawData: KunjunganFormValues) {
   try {
-    const validated = kunjunganSchema.parse(rawData);
+    const parsed = kunjunganSchema.safeParse(rawData);
+    if (!parsed.success) {
+      const fieldErrors: Record<string, string> = {};
+      parsed.error.issues.forEach((issue) => {
+        const field = issue.path[0] as string;
+        if (field && !fieldErrors[field]) {
+          fieldErrors[field] = issue.message;
+        }
+      });
+      const firstErrorMessage = parsed.error.issues[0]?.message || 'Data formulir tidak valid';
+      return {
+        success: false,
+        error: firstErrorMessage,
+        fieldErrors,
+      };
+    }
+
+    const validated = parsed.data;
     const supabase = await createClient();
 
     let isUnique = false;
@@ -49,7 +66,7 @@ export async function submitKunjunganAction(rawData: KunjunganFormValues) {
 
     if (error) {
       console.error('Error inserting kunjungan:', error);
-      return { success: false, error: 'Gagal menyimpan data kunjungan: ' + error.message };
+      return { success: false, error: 'Gagal menyimpan data kunjungan: ' + cleanErrorMessage(error.message) };
     }
 
     return {
@@ -59,8 +76,13 @@ export async function submitKunjunganAction(rawData: KunjunganFormValues) {
     };
   } catch (err: unknown) {
     console.error('Validation / Execution error in submitKunjungan:', err);
-    const msg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem';
-    return { success: false, error: msg };
+    const msg = cleanErrorMessage(err);
+    const fieldErrors = extractZodFieldErrors(err);
+    return {
+      success: false,
+      error: msg || 'Terjadi kesalahan sistem saat menyimpan kunjungan',
+      fieldErrors: Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined,
+    };
   }
 }
 
@@ -173,7 +195,7 @@ export async function verifyAndCheckInAction(bookingCode: string, catatanAdmin?:
       return {
         success: false,
         type: 'ERROR',
-        message: 'Gagal memperbarui status kehadiran: ' + updateErr.message,
+        message: 'Gagal memperbarui status kehadiran: ' + cleanErrorMessage(updateErr.message),
       };
     }
 
@@ -184,8 +206,8 @@ export async function verifyAndCheckInAction(bookingCode: string, catatanAdmin?:
       data: updated as Kunjungan,
     };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Kesalahan sistem saat verifikasi';
-    return { success: false, type: 'ERROR', message: msg };
+    const msg = cleanErrorMessage(err);
+    return { success: false, type: 'ERROR', message: msg || 'Kesalahan sistem saat verifikasi' };
   }
 }
 
@@ -222,13 +244,13 @@ export async function updateKunjunganStatusAction(
       .single();
 
     if (error) {
-      return { success: false, error: 'Gagal mengupdate status: ' + error.message };
+      return { success: false, error: 'Gagal mengupdate status: ' + cleanErrorMessage(error.message) };
     }
 
     return { success: true, data: data as Kunjungan };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Gagal memproses aksi';
-    return { success: false, error: msg };
+    const msg = cleanErrorMessage(err);
+    return { success: false, error: msg || 'Gagal memproses aksi' };
   }
 }
 
@@ -237,12 +259,12 @@ export async function deleteKunjunganAction(id: string) {
     const supabase = await createClient();
     const { error } = await supabase.from('kunjungan').delete().eq('id', id);
     if (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: cleanErrorMessage(error.message) };
     }
     return { success: true };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Gagal menghapus data';
-    return { success: false, error: msg };
+    const msg = cleanErrorMessage(err);
+    return { success: false, error: msg || 'Gagal menghapus data' };
   }
 }
 

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { Plus, Edit2, Trash2, Power, UserSquare2, RefreshCw } from "lucide-react";
+import { Plus, Edit2, Trash2, Power, UserSquare2, RefreshCw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,8 @@ import {
   togglePegawaiStatusAction,
   deletePegawaiAction,
 } from "@/app/actions/pegawai";
+import { pegawaiSchema } from "@/lib/validations/kunjungan";
+import { cleanErrorMessage, extractZodFieldErrors, cn } from "@/lib/utils";
 import type { Pegawai } from "@/types/database";
 
 interface PegawaiManagerProps {
@@ -31,6 +33,17 @@ export function PegawaiManager({ initialData }: PegawaiManagerProps) {
   const [nip, setNip] = React.useState("");
   const [jabatan, setJabatan] = React.useState("");
   const [divisi, setDivisi] = React.useState("");
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+
+  const clearError = (field: string) => {
+    if (errors[field]) {
+      setErrors((prev) => {
+        const copy = { ...prev };
+        delete copy[field];
+        return copy;
+      });
+    }
+  };
 
   const loadPegawai = async () => {
     setIsLoading(true);
@@ -38,6 +51,8 @@ export function PegawaiManager({ initialData }: PegawaiManagerProps) {
       const res = await getAllPegawaiAdminAction();
       if (res.success) {
         setData(res.data);
+      } else {
+        toast.error(cleanErrorMessage(res.error));
       }
     } finally {
       setIsLoading(false);
@@ -50,6 +65,7 @@ export function PegawaiManager({ initialData }: PegawaiManagerProps) {
     setNip("");
     setJabatan("");
     setDivisi("");
+    setErrors({});
     setModalOpen(true);
   };
 
@@ -59,35 +75,57 @@ export function PegawaiManager({ initialData }: PegawaiManagerProps) {
     setNip(p.nip || "");
     setJabatan(p.jabatan || "");
     setDivisi(p.divisi);
+    setErrors({});
     setModalOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nama.trim() || !divisi.trim()) {
-      toast.error("Nama pegawai dan divisi wajib diisi");
+
+    const payload = {
+      id: editingId || undefined,
+      nama: nama.trim(),
+      nip: nip.trim() || null,
+      jabatan: jabatan.trim() || null,
+      divisi: divisi.trim(),
+    };
+
+    const validation = pegawaiSchema.safeParse(payload);
+    if (!validation.success) {
+      const newErrors: Record<string, string> = {};
+      for (const issue of validation.error.issues) {
+        const field = issue.path[0] as string;
+        if (field && !newErrors[field]) {
+          newErrors[field] = issue.message;
+        }
+      }
+      setErrors(newErrors);
+      const firstMessage = Object.values(newErrors)[0] || "Mohon lengkapi data pegawai dengan benar";
+      toast.error(firstMessage);
       return;
     }
 
+    setErrors({});
     toast.loading("Menyimpan data pegawai...", { id: "save-pegawai" });
     try {
-      const res = await savePegawaiAction({
-        id: editingId || undefined,
-        nama,
-        nip,
-        jabatan,
-        divisi,
-      });
+      const res = await savePegawaiAction(payload);
 
       if (res.success && res.data) {
         toast.success("Pegawai berhasil disimpan!", { id: "save-pegawai" });
         setModalOpen(false);
         loadPegawai();
       } else {
-        toast.error(res.error || "Gagal menyimpan pegawai", { id: "save-pegawai" });
+        const cleanedMsg = cleanErrorMessage(res.error || "Gagal menyimpan pegawai");
+        if (res.fieldErrors) {
+          setErrors(res.fieldErrors);
+        } else {
+          const extracted = extractZodFieldErrors(res.error);
+          if (Object.keys(extracted).length > 0) setErrors(extracted);
+        }
+        toast.error(cleanedMsg, { id: "save-pegawai" });
       }
-    } catch {
-      toast.error("Terjadi kendala server", { id: "save-pegawai" });
+    } catch (err) {
+      toast.error(cleanErrorMessage(err) || "Terjadi kendala server", { id: "save-pegawai" });
     }
   };
 
@@ -254,13 +292,27 @@ export function PegawaiManager({ initialData }: PegawaiManagerProps) {
 
         <form onSubmit={handleSave} className="space-y-4 my-2 text-xs">
           <div className="space-y-1.5">
-            <label className="font-semibold text-slate-700">Nama Lengkap & Gelar *</label>
+            <label className="font-semibold text-slate-700">
+              Nama Lengkap & Gelar <span className="text-red-500">*</span>
+            </label>
             <Input
               placeholder="Contoh: Budi Santoso, S.Kom"
               value={nama}
-              onChange={(e) => setNama(e.target.value)}
-              required
+              onChange={(e) => {
+                setNama(e.target.value);
+                clearError("nama");
+              }}
+              className={cn(
+                errors.nama &&
+                  "border-rose-500 bg-rose-50/20 text-rose-950 focus-visible:border-rose-500 focus-visible:ring-rose-500/25"
+              )}
             />
+            {errors.nama && (
+              <p className="text-xs text-rose-600 font-medium flex items-center gap-1.5 mt-1 animate-in fade-in-50">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                <span>{errors.nama}</span>
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -269,17 +321,44 @@ export function PegawaiManager({ initialData }: PegawaiManagerProps) {
               <Input
                 placeholder="Contoh: 198503152010011002"
                 value={nip}
-                onChange={(e) => setNip(e.target.value)}
+                onChange={(e) => {
+                  setNip(e.target.value);
+                  clearError("nip");
+                }}
+                className={cn(
+                  errors.nip &&
+                    "border-rose-500 bg-rose-50/20 text-rose-950 focus-visible:border-rose-500 focus-visible:ring-rose-500/25"
+                )}
               />
+              {errors.nip && (
+                <p className="text-xs text-rose-600 font-medium flex items-center gap-1.5 mt-1 animate-in fade-in-50">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                  <span>{errors.nip}</span>
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
-              <label className="font-semibold text-slate-700">Divisi / Bagian *</label>
+              <label className="font-semibold text-slate-700">
+                Divisi / Bagian <span className="text-red-500">*</span>
+              </label>
               <Input
                 placeholder="Contoh: Teknologi Informasi"
                 value={divisi}
-                onChange={(e) => setDivisi(e.target.value)}
-                required
+                onChange={(e) => {
+                  setDivisi(e.target.value);
+                  clearError("divisi");
+                }}
+                className={cn(
+                  errors.divisi &&
+                    "border-rose-500 bg-rose-50/20 text-rose-950 focus-visible:border-rose-500 focus-visible:ring-rose-500/25"
+                )}
               />
+              {errors.divisi && (
+                <p className="text-xs text-rose-600 font-medium flex items-center gap-1.5 mt-1 animate-in fade-in-50">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                  <span>{errors.divisi}</span>
+                </p>
+              )}
             </div>
           </div>
 
@@ -288,8 +367,21 @@ export function PegawaiManager({ initialData }: PegawaiManagerProps) {
             <Input
               placeholder="Contoh: Kepala Sub Bagian IT"
               value={jabatan}
-              onChange={(e) => setJabatan(e.target.value)}
+              onChange={(e) => {
+                setJabatan(e.target.value);
+                clearError("jabatan");
+              }}
+              className={cn(
+                errors.jabatan &&
+                  "border-rose-500 bg-rose-50/20 text-rose-950 focus-visible:border-rose-500 focus-visible:ring-rose-500/25"
+              )}
             />
+            {errors.jabatan && (
+              <p className="text-xs text-rose-600 font-medium flex items-center gap-1.5 mt-1 animate-in fade-in-50">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                <span>{errors.jabatan}</span>
+              </p>
+            )}
           </div>
 
           <DialogFooter className="gap-2 pt-4">

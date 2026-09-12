@@ -27,7 +27,7 @@ import {
   updateKunjunganStatusAction,
   getKunjunganByCodeAction,
 } from "@/app/actions/kunjungan";
-import { formatTanggalIndo, formatWaktuIndo } from "@/lib/utils";
+import { formatTanggalIndo, formatWaktuIndo, cleanErrorMessage } from "@/lib/utils";
 import type { Kunjungan } from "@/types/database";
 
 export function QrScanner() {
@@ -88,11 +88,13 @@ export function QrScanner() {
       setModalOpen(true);
     } catch (err) {
       console.error(err);
-      toast.error("Gagal memproses kode");
+      toast.error(cleanErrorMessage(err) || "Gagal memproses kode");
     } finally {
       setIsProcessing(false);
     }
   };
+
+  const handleScanSuccess = processCode;
 
   const startScanner = async () => {
     setCameraError(null);
@@ -112,47 +114,42 @@ export function QrScanner() {
         config,
         (decodedText) => {
           if (!isHandlingScan.current) {
-            processCode(decodedText);
+            handleScanSuccess(decodedText);
           }
         },
         () => {
-          // ignore frames where no QR is found
+          // ignore scan frame errors
         }
       );
 
       setScannerActive(true);
-    } catch (err: unknown) {
-      console.error("Scanner start error:", err);
-      const msg = err instanceof Error ? err.message : "Tidak dapat mengakses kamera";
-      setCameraError(msg);
+    } catch (err) {
+      console.error("Camera error:", err);
+      setCameraError(
+        "Tidak dapat mengakses kamera. Pastikan izin akses kamera diaktifkan di peramban Anda."
+      );
       setScannerActive(false);
     }
   };
 
   const stopScanner = async () => {
-    if (scannerRef.current && scannerActive) {
-      try {
+    try {
+      if (scannerRef.current && scannerActive) {
         await scannerRef.current.stop();
-      } catch (err) {
-        console.warn("Scanner stop error:", err);
+        setScannerActive(false);
       }
+    } catch (err) {
+      console.error("Stop scanner error:", err);
     }
-    setScannerActive(false);
   };
 
   React.useEffect(() => {
     return () => {
-      if (scannerRef.current) {
-        try {
-          if (scannerRef.current.isScanning) {
-            scannerRef.current.stop();
-          }
-        } catch {
-          // cleanup
-        }
+      if (scannerRef.current && scannerActive) {
+        scannerRef.current.stop().catch(() => {});
       }
     };
-  }, []);
+  }, [scannerActive]);
 
   const handleModalClose = (open: boolean) => {
     setModalOpen(open);
@@ -185,7 +182,7 @@ export function QrScanner() {
           data: res.data,
         });
       } else {
-        toast.error(res.error || "Gagal memperbarui status");
+        toast.error(cleanErrorMessage(res.error) || "Gagal memperbarui status");
       }
     } finally {
       setIsProcessing(false);

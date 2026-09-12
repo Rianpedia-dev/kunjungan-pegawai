@@ -1,14 +1,15 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { cleanErrorMessage } from '@/lib/utils';
 import { redirect } from 'next/navigation';
 
 export async function signInAdminAction(formData: FormData) {
-  const email = formData.get('email') as string;
+  const email = (formData.get('email') as string)?.trim();
   const password = formData.get('password') as string;
 
   if (!email || !password) {
-    return { success: false, error: 'Email dan password wajib diisi' };
+    return { success: false, error: 'Email dan kata sandi wajib diisi' };
   }
 
   const supabase = await createClient();
@@ -20,8 +21,13 @@ export async function signInAdminAction(formData: FormData) {
   });
 
   if (error) {
-    // If user not found and it's the first time setup, provide option or clear message
-    return { success: false, error: error.message };
+    let msg = error.message;
+    if (msg.toLowerCase().includes('invalid login credentials')) {
+      msg = 'Email atau kata sandi tidak cocok. Silakan periksa kembali.';
+    } else if (msg.toLowerCase().includes('email not confirmed')) {
+      msg = 'Email belum dikonfirmasi.';
+    }
+    return { success: false, error: cleanErrorMessage(msg) };
   }
 
   return { success: true, user: data.user };

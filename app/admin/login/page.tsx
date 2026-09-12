@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
-import { Lock, Mail, ArrowRight, ArrowLeft, Loader2, UserCheck, KeyRound } from "lucide-react";
+import { Lock, Mail, ArrowRight, ArrowLeft, Loader2, UserCheck, KeyRound, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { signInAdminAction, signUpInitialAdminAction } from "@/app/actions/auth";
+import { adminAuthSchema } from "@/lib/validations/kunjungan";
+import { cleanErrorMessage, cn } from "@/lib/utils";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -17,17 +19,40 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+
+  const clearError = (field: string) => {
+    if (errors[field]) {
+      setErrors((prev) => {
+        const copy = { ...prev };
+        delete copy[field];
+        return copy;
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error("Email dan password wajib diisi");
+
+    const validation = adminAuthSchema.safeParse({ email, password });
+    if (!validation.success) {
+      const newErrors: Record<string, string> = {};
+      for (const issue of validation.error.issues) {
+        const field = issue.path[0] as string;
+        if (field && !newErrors[field]) {
+          newErrors[field] = issue.message;
+        }
+      }
+      setErrors(newErrors);
+      const firstMsg = Object.values(newErrors)[0] || "Mohon isi formulir dengan benar";
+      toast.error(firstMsg);
       return;
     }
 
+    setErrors({});
     setIsLoading(true);
     const formData = new FormData();
-    formData.append("email", email);
+    formData.append("email", email.trim().toLowerCase());
     formData.append("password", password);
 
     try {
@@ -38,7 +63,7 @@ export default function AdminLoginPage() {
           toast.success("Pendaftaran admin berhasil! Silakan login.", { id: "auth" });
           setIsRegisterMode(false);
         } else {
-          toast.error(res.error || "Gagal mendaftarkan akun", { id: "auth" });
+          toast.error(cleanErrorMessage(res.error || "Gagal mendaftarkan akun"), { id: "auth" });
         }
       } else {
         toast.loading("Memverifikasi kredensial...", { id: "auth" });
@@ -48,7 +73,7 @@ export default function AdminLoginPage() {
           router.push("/admin");
           router.refresh();
         } else {
-          toast.error(res.error || "Login gagal, periksa email & password", { id: "auth" });
+          toast.error(cleanErrorMessage(res.error || "Login gagal, periksa email & kata sandi"), { id: "auth" });
         }
       }
     } catch {
@@ -104,11 +129,23 @@ export default function AdminLoginPage() {
                   type="email"
                   placeholder="admin@instansi.go.id"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="pl-10"
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearError("email");
+                  }}
+                  className={cn(
+                    "pl-10",
+                    errors.email &&
+                      "border-rose-500 bg-rose-50/20 text-rose-950 focus-visible:border-rose-500 focus-visible:ring-rose-500/25"
+                  )}
                 />
               </div>
+              {errors.email && (
+                <p className="text-xs text-rose-600 font-medium flex items-center gap-1.5 mt-1 animate-in fade-in-50">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                  <span>{errors.email}</span>
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -121,11 +158,23 @@ export default function AdminLoginPage() {
                   type="password"
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="pl-10"
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    clearError("password");
+                  }}
+                  className={cn(
+                    "pl-10",
+                    errors.password &&
+                      "border-rose-500 bg-rose-50/20 text-rose-950 focus-visible:border-rose-500 focus-visible:ring-rose-500/25"
+                  )}
                 />
               </div>
+              {errors.password && (
+                <p className="text-xs text-rose-600 font-medium flex items-center gap-1.5 mt-1 animate-in fade-in-50">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                  <span>{errors.password}</span>
+                </p>
+              )}
             </div>
 
             <Button
