@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Html5Qrcode, Html5QrcodeCameraScanConfig } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeScannerState, Html5QrcodeCameraScanConfig } from "html5-qrcode";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import {
@@ -96,31 +96,52 @@ export function QrScanner() {
 
   const handleScanSuccess = processCode;
 
+  const isOperatingRef = React.useRef(false);
+
+  const isScannerRunning = () => {
+    try {
+      const scanner = scannerRef.current;
+      if (!scanner) return false;
+      return (
+        Boolean(scanner.isScanning) ||
+        scanner.getState?.() === Html5QrcodeScannerState.SCANNING ||
+        scanner.getState?.() === Html5QrcodeScannerState.PAUSED
+      );
+    } catch {
+      return false;
+    }
+  };
+
   const startScanner = async () => {
+    if (isOperatingRef.current) return;
+    isOperatingRef.current = true;
     setCameraError(null);
+
     try {
       if (!scannerRef.current) {
         scannerRef.current = new Html5Qrcode("qr-reader");
       }
 
-      const config: Html5QrcodeCameraScanConfig = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
-      };
+      if (!isScannerRunning()) {
+        const config: Html5QrcodeCameraScanConfig = {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+        };
 
-      await scannerRef.current.start(
-        { facingMode: "environment" },
-        config,
-        (decodedText) => {
-          if (!isHandlingScan.current) {
-            handleScanSuccess(decodedText);
+        await scannerRef.current.start(
+          { facingMode: "environment" },
+          config,
+          (decodedText) => {
+            if (!isHandlingScan.current) {
+              handleScanSuccess(decodedText);
+            }
+          },
+          () => {
+            // ignore scan frame errors
           }
-        },
-        () => {
-          // ignore scan frame errors
-        }
-      );
+        );
+      }
 
       setScannerActive(true);
     } catch (err) {
@@ -129,27 +150,51 @@ export function QrScanner() {
         "Tidak dapat mengakses kamera. Pastikan izin akses kamera diaktifkan di peramban Anda."
       );
       setScannerActive(false);
+    } finally {
+      isOperatingRef.current = false;
     }
   };
 
   const stopScanner = async () => {
+    if (isOperatingRef.current) return;
+    isOperatingRef.current = true;
+
     try {
-      if (scannerRef.current && scannerActive) {
-        await scannerRef.current.stop();
-        setScannerActive(false);
+      if (scannerRef.current && isScannerRunning()) {
+        try {
+          await scannerRef.current.stop();
+        } catch (err) {
+          console.warn("Abaikan pesan stop scanner:", err);
+        }
       }
     } catch (err) {
-      console.error("Stop scanner error:", err);
+      console.warn("Stop scanner error:", err);
+    } finally {
+      setScannerActive(false);
+      isOperatingRef.current = false;
     }
   };
 
+  // Hanya bersihkan ketika komponen unmount (keluar dari halaman)
   React.useEffect(() => {
     return () => {
-      if (scannerRef.current && scannerActive) {
-        scannerRef.current.stop().catch(() => {});
+      const scanner = scannerRef.current;
+      if (scanner) {
+        try {
+          const isScanning =
+            Boolean(scanner.isScanning) ||
+            scanner.getState?.() === Html5QrcodeScannerState.SCANNING ||
+            scanner.getState?.() === Html5QrcodeScannerState.PAUSED;
+
+          if (isScanning) {
+            scanner.stop().catch((e) => console.warn("Abaikan unmount stop error:", e));
+          }
+        } catch (e) {
+          console.warn("Abaikan unmount stop synchronous error:", e);
+        }
       }
     };
-  }, [scannerActive]);
+  }, []);
 
   const handleModalClose = (open: boolean) => {
     setModalOpen(open);
